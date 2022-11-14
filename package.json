@@ -7,6 +7,11 @@
         "name": "Lionello Lunesu",
         "email": "lio.lunesu@defang.io"
     },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/defang-io/go-text-template.git"
+    },
+    "homepage": "https://github.com/defang-io/go-text-template",
     "engines": {
         "node": ">=14"
     },
