@@ -1,6 +1,6 @@
 {
     "name": "go-text-template",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "license": "MIT",
     "description": "Go text/template parser and renderer",
     "author": {
