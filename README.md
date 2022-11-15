@@ -1,5 +1,6 @@
 # go-text-template
 [![Node.js CI](https://github.com/defang-io/go-text-template/actions/workflows/node.js.yml/badge.svg)](https://github.com/defang-io/go-text-template/actions/workflows/node.js.yml)
+![npm](https://img.shields.io/npm/v/go-text-template)
 
 Basic Go text/template parser and renderer.
 
