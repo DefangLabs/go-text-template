@@ -81,8 +81,10 @@ output
   });
 
   it("supports custom functions", function () {
-    template.funcs.set("id", (args) => args[0]);
+    template.funcs.set("id", (arg: any) => arg);
+    template.funcs.set("add", (a: any, b: any) => a + b);
     assert.strictEqual(template.execute(`{{id "output"}}`), "output");
+    assert.strictEqual(template.execute(`{{add 2 3}}`), "5");
   });
 
   it("supports parantheses", function () {

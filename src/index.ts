@@ -104,7 +104,11 @@ function tokenize(action: string): Token[] {
   return tokens;
 }
 
-type FuncType = (args: Value[]) => Value;
+type FuncType0 = () => Value;
+type FuncType1 = (arg1: Value) => Value;
+type FuncType2 = (arg1: Value, arg2: Value) => Value;
+type FuncType3 = (arg1: Value, arg2: Value, arg3: Value) => Value;
+type FuncType = FuncType0 | FuncType1 | FuncType2 | FuncType3;
 type FuncMap = Map<string, FuncType>;
 
 export function asNumber(value: Value): number {
@@ -373,7 +377,8 @@ function evaluateArg(tokens: Token[], scope: Scope): Scope | null {
       }
       const userFunc = scope.template.funcs.get(token.name);
       if (userFunc) {
-        scope.acc = userFunc(args);
+        // @ts-ignore
+        scope.acc = userFunc.apply(null, args);
         return scope;
       }
       scope.acc = callBuiltinFunction(token.name, ...args);

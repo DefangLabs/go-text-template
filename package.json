@@ -1,6 +1,6 @@
 {
     "name": "go-text-template",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "license": "MIT",
     "description": "Go text/template parser and renderer",
     "author": {
@@ -17,7 +17,7 @@
     },
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
-    "files":[
+    "files": [
         "dist/index.js",
         "dist/index.d.ts"
     ],
