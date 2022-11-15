@@ -81,8 +81,17 @@ output
   });
 
   it("supports custom functions", function () {
-    template.funcs.set("id", (arg: any) => arg);
-    template.funcs.set("add", (a: any, b: any) => a + b);
+    template.funcs.set("id", (arg: any, ...rest: any[]) => {
+      assert.strictEqual(typeof arg, "string");
+      assert.strictEqual(rest.length, 0);
+      return arg;
+    });
+    template.funcs.set("add", (a: any, b: any, ...rest: any[]) => {
+      assert.strictEqual(typeof a, "number");
+      assert.strictEqual(typeof b, "number");
+      assert.strictEqual(rest.length, 0);
+      return a + b;
+    });
     assert.strictEqual(template.execute(`{{id "output"}}`), "output");
     assert.strictEqual(template.execute(`{{add 2 3}}`), "5");
   });
