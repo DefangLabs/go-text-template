@@ -98,9 +98,10 @@ function tokenize(action: string): Token[] {
       tokens.push({ kind: ".", select: match[6].slice(1) });
     }
   }
-  if (index !== action.length) {
-    throw new Error(`syntax error: ${action.substring(index)} at ${index}`);
-  }
+  enforce(
+    index === action.length,
+    `syntax error: ${action.substring(index)} at ${index}`
+  );
   return tokens;
 }
 
@@ -110,16 +111,6 @@ type FuncType2 = (arg1: Value, arg2: Value) => Value;
 type FuncType3 = (arg1: Value, arg2: Value, arg3: Value) => Value;
 type FuncType = FuncType0 | FuncType1 | FuncType2 | FuncType3;
 type FuncMap = Map<string, FuncType>;
-
-export function asNumber(value: Value): number {
-  assert(typeof value === "number");
-  return value;
-}
-
-export function asString(value: Value): string {
-  assert(typeof value === "string");
-  return value;
-}
 
 class Scope {
   constructor(
@@ -138,7 +129,7 @@ class Scope {
     if (this.parent !== undefined) {
       return this.parent.lookup(name);
     }
-    throw new Error(`undefined variable "\$${name}"`);
+    throw new Error(`undefined variable "$${name}"`);
   }
 }
 
@@ -158,9 +149,7 @@ export class Template {
         scope.acc = undefined;
         const tokens = tokenize(group);
         scope = evaluatePipeline(tokens, scope);
-        if (tokens.length !== 0) {
-          throw new Error(`syntax error: ${tokens[0]?.kind}`);
-        }
+        enforce(tokens.length === 0, `syntax error: ${tokens[0]?.kind}`);
         return scope.acc === undefined ? "" : sprint(scope.acc);
       }
     );
@@ -170,12 +159,15 @@ export class Template {
 assert.strictEqual(new Template().execute("{{23 -}} < {{- 45}}"), "23<45");
 
 function evaluatePipeline(tokens: Token[], scope: Scope): Scope {
-  scope = evaluateArg(tokens, scope)!;
-  while (tokens[0]?.kind === "|") {
+  while (true) {
+    const newScope = evaluateArg(tokens, scope);
+    enforce(newScope, "syntax error: unexpected end of pipeline");
+    scope = newScope;
+    if (tokens[0]?.kind !== "|") {
+      return scope;
+    }
     tokens.shift();
-    scope = evaluateArg(tokens, scope)!;
   }
-  return scope;
 }
 
 function isEmpty(value: Value): boolean {
@@ -209,58 +201,92 @@ assert.strictEqual(sprint(), "");
 assert.strictEqual(sprint("foo", "bar"), "foobar");
 assert.strictEqual(sprint(1, null, "3"), "1 <nil> 3");
 
+function enforce(value: unknown, message: string): asserts value {
+  if (!value) {
+    throw new Error(message);
+  }
+}
+
+function enforceArgsLength(fn: string, actual: number, expected: number) {
+  enforce(
+    actual === expected,
+    `wrong number of args for ${fn}: want ${expected} got ${actual}`
+  );
+}
+
+function enforceArgsMinLength(fn: string, actual: number, expected: number) {
+  enforce(
+    actual >= expected,
+    `wrong number of args for ${fn}: want at least ${expected} got ${actual}`
+  );
+}
+
+function enforceCompatibleTypes(lhs: Value, rhs: Value) {
+  enforce(typeof lhs === typeof rhs, "incompatible types for comparison");
+}
+
 function callBuiltinFunction(fn: string, ...args: Value[]): Value {
   switch (fn) {
     case "eq":
-      assert(args.length >= 2);
-      return args[0] === args[1];
-    case "eq":
+      enforceArgsMinLength(fn, args.length, 2);
       // "For simpler multi-way equality tests, eq (only) accepts two or more arguments and compares the second and
       // subsequent to the first, returning in effect arg1==arg2 || arg1==arg3 || arg1==arg4 ..."
-      assert(args.length >= 2);
-      return args.reduce((prev, cur) => prev || args[0] == cur, false);
+      return args.slice(1).some((arg) => arg === args[0]); // TODO: detect incompatible types for comparison
     case "ne":
-      assert.strictEqual(args.length, 2);
-      return args[0] != args[1];
+      enforceArgsLength(fn, args.length, 2);
+      enforceCompatibleTypes(args[0], args[1]);
+      return args[0] !== args[1];
     case "lt":
-      assert.strictEqual(args.length, 2);
-      assert(args[0] !== null);
-      assert(args[1] !== null);
+      enforceArgsLength(fn, args.length, 2);
+      enforceCompatibleTypes(args[0], args[1]);
+      enforce(
+        args[0] !== null && args[1] !== null,
+        "invalid type for comparison"
+      );
       return args[0] < args[1];
     case "le":
-      assert.strictEqual(args.length, 2);
-      assert(args[0] !== null);
-      assert(args[1] !== null);
+      enforceArgsLength(fn, args.length, 2);
+      enforceCompatibleTypes(args[0], args[1]);
+      enforce(
+        args[0] !== null && args[1] !== null,
+        "invalid type for comparison"
+      );
       return args[0] <= args[1];
     case "gt":
-      assert.strictEqual(args.length, 2);
-      assert(args[0] !== null);
-      assert(args[1] !== null);
+      enforceArgsLength(fn, args.length, 2);
+      enforceCompatibleTypes(args[0], args[1]);
+      enforce(
+        args[0] !== null && args[1] !== null,
+        "invalid type for comparison"
+      );
       return args[0] > args[1];
     case "ge":
-      assert.strictEqual(args.length, 2);
-      assert(args[0] !== null);
-      assert(args[1] !== null);
+      enforceArgsLength(fn, args.length, 2);
+      enforceCompatibleTypes(args[0], args[1]);
+      enforce(
+        args[0] !== null && args[1] !== null,
+        "invalid type for comparison"
+      );
       return args[0] >= args[1];
     case "and":
-      assert(args.length >= 2);
+      enforceArgsMinLength(fn, args.length, 1);
       return args.reduce((prev, cur) => (isEmpty(prev) ? prev : cur));
     case "or":
-      assert(args.length >= 2);
+      enforceArgsMinLength(fn, args.length, 1);
       return args.reduce((prev, cur) => (isEmpty(prev) ? cur : prev));
     case "print":
-      assert(args.length >= 0);
       return sprint(...args);
     case "println":
-      assert(args.length >= 0);
       return sprint(...args) + "\n";
     case "not":
       // "Returns the boolean negation of its single argument."
-      assert.strictEqual(args.length, 1);
+      enforceArgsLength(fn, args.length, 1);
       return isEmpty(args[0]);
     case "len":
-      assert.strictEqual(args.length, 1);
-      return asString(args[0]).length; // TODO: support array and map
+      enforceArgsLength(fn, args.length, 1);
+      // TODO: support array and map
+      enforce(typeof args[0] === "string", `len of type ${typeof args[0]}`);
+      return args[0].length;
     case "call":
     case "printf":
     case "if":
@@ -279,7 +305,7 @@ function callBuiltinFunction(fn: string, ...args: Value[]): Value {
 
 assert.strictEqual(callBuiltinFunction("eq", 1, 1), true);
 assert.strictEqual(callBuiltinFunction("eq", 1, 2), false);
-assert.strictEqual(callBuiltinFunction("eq", 1, 1, 2), true);
+assert.strictEqual(callBuiltinFunction("eq", 1, 2, 1), true);
 assert.strictEqual(callBuiltinFunction("eq", 1, 2, 3), false);
 assert.strictEqual(callBuiltinFunction("ne", 1, 1), false);
 assert.strictEqual(callBuiltinFunction("ne", 1, 2), true);
@@ -311,7 +337,7 @@ assert.strictEqual(callBuiltinFunction("not", true), false);
 assert.strictEqual(callBuiltinFunction("len", "foo"), 3);
 
 function evaluateArg(tokens: Token[], scope: Scope): Scope | null {
-  let token = tokens.shift();
+  const token = tokens.shift();
   if (token === undefined) {
     return null;
   }
@@ -321,6 +347,7 @@ function evaluateArg(tokens: Token[], scope: Scope): Scope | null {
       return scope;
     case "$":
       switch (tokens[0]?.kind) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore to allow fallthrough
         case "=":
           assert(scope.lookup(token.name) !== undefined);
@@ -357,37 +384,37 @@ function evaluateArg(tokens: Token[], scope: Scope): Scope | null {
           return scope;
         case "with":
           scope = new Scope(scope.template, scope.acc, scope);
-          assert(evaluateArg(tokens, scope));
+          enforce(evaluateArg(tokens, scope), "missing value for with");
           scope.data = scope.acc;
           scope.acc = undefined;
           return scope;
         case "end":
-          assert(scope.parent !== undefined);
+          enforce(scope.parent !== undefined, "unexpected {{end}}");
           return scope.parent;
+        default:
+          const acc = scope.acc;
+          const args: Value[] = [];
+          // FIXME: this is greedy, but Go's parsing is not
+          while (evaluateArg(tokens, scope)) {
+            assert(scope.acc !== undefined);
+            args.push(scope.acc);
+          }
+          if (acc !== undefined) {
+            args.push(acc);
+          }
+          const userFunc = scope.template.funcs.get(token.name);
+          if (userFunc) {
+            enforceArgsLength(token.name, args.length, userFunc.length);
+            // @ts-ignore
+            scope.acc = userFunc.apply(null, args);
+          } else {
+            scope.acc = callBuiltinFunction(token.name, ...args);
+          }
+          return scope;
       }
-      const acc = scope.acc;
-      const args: Value[] = [];
-      // FIXME: this is greedy, but Go's parsing is not
-      while (evaluateArg(tokens, scope)) {
-        assert(scope.acc !== undefined);
-        args.push(scope.acc);
-      }
-      if (acc !== undefined) {
-        args.push(acc);
-      }
-      const userFunc = scope.template.funcs.get(token.name);
-      if (userFunc) {
-        // @ts-ignore
-        scope.acc = userFunc.apply(null, args);
-        return scope;
-      }
-      scope.acc = callBuiltinFunction(token.name, ...args);
-      return scope;
     case "(":
       evaluatePipeline(tokens, scope);
-      if (tokens.shift()?.kind !== ")") {
-        throw new Error("unclosed left paren");
-      }
+      enforce(tokens.shift()?.kind === ")", "unclosed left paren");
       return scope;
     default:
       tokens.unshift(token);

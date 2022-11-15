@@ -80,24 +80,46 @@ output
     });
   });
 
-  it("supports custom functions", function () {
-    template.funcs.set("id", (arg: any, ...rest: any[]) => {
-      assert.strictEqual(typeof arg, "string");
-      assert.strictEqual(rest.length, 0);
-      return arg;
+  describe("custom functions", function () {
+    it("supports simple functions", function () {
+      template.funcs.set("fourtytwo", (...rest: any[]) => {
+        assert.strictEqual(rest.length, 0);
+        return 42;
+      });
+      assert.strictEqual(template.execute(`{{fourtytwo}}`), "42");
     });
-    template.funcs.set("add", (a: any, b: any, ...rest: any[]) => {
-      assert.strictEqual(typeof a, "number");
-      assert.strictEqual(typeof b, "number");
-      assert.strictEqual(rest.length, 0);
-      return a + b;
+
+    it("supports function with one argument", function () {
+      template.funcs.set("id", (arg: any, ...rest: any[]) => {
+        assert.strictEqual(typeof arg, "string");
+        assert.strictEqual(rest.length, 0);
+        return arg;
+      });
+      assert.strictEqual(template.execute(`{{id "output"}}`), "output");
     });
-    assert.strictEqual(template.execute(`{{id "output"}}`), "output");
-    assert.strictEqual(template.execute(`{{add 2 3}}`), "5");
+
+    it("supports functions with more arguments", function () {
+      template.funcs.set("add", (a: any, b: any, ...rest: any[]) => {
+        assert.strictEqual(typeof a, "number");
+        assert.strictEqual(typeof b, "number");
+        assert.strictEqual(rest.length, 0);
+        return a + b;
+      });
+      assert.strictEqual(template.execute(`{{add 2 3}}`), "5");
+    });
+
+    it("detects wrong number of arguments", function () {
+      template.funcs.set("add", (a: any, b: any) => a + b);
+      assert.throws(
+        () => template.execute(`{{add 2}}`),
+        /wrong number of args for add: want 2 got 1/
+      );
+    });
   });
 
-  it("supports parantheses", function () {
+  it("supports parentheses", function () {
     assert.strictEqual(template.execute(`{{(print "output")}}`), "output");
     assert.strictEqual(template.execute(`{{((print "output"))}}`), "output");
+    assert.strictEqual(template.execute(`{{print ("output")}}`), "output");
   });
 });
