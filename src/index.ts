@@ -1,7 +1,7 @@
 import assert = require("assert");
 
 // TODO: add support for Array and Map
-type Value = string | number | null | boolean;
+type Value = string | number | null | boolean | FuncType;
 
 interface Literal {
   kind: "literal";
@@ -150,6 +150,7 @@ export class Template {
         const tokens = tokenize(group);
         scope = evaluatePipeline(tokens, scope);
         enforce(tokens.length === 0, `syntax error: ${tokens[0]?.kind}`);
+        assert(!(scope.acc instanceof Function));
         return scope.acc === undefined ? "" : sprint(scope.acc);
       }
     );
@@ -225,6 +226,12 @@ function enforceCompatibleTypes(lhs: Value, rhs: Value) {
   enforce(typeof lhs === typeof rhs, "incompatible types for comparison");
 }
 
+function callUserFunction(fn: FuncType, name: string, ...args: Value[]): Value {
+  enforceArgsLength(name, args.length, fn.length);
+  // @ts-ignore
+  return fn.apply(null, args);
+}
+
 function callBuiltinFunction(fn: string, ...args: Value[]): Value {
   switch (fn) {
     case "eq":
@@ -288,6 +295,8 @@ function callBuiltinFunction(fn: string, ...args: Value[]): Value {
       enforce(typeof args[0] === "string", `len of type ${typeof args[0]}`);
       return args[0].length;
     case "call":
+      enforce(args[0] instanceof Function, `non-function of type ${typeof args[0]}`);
+      return callUserFunction(args[0], args[0].name, ...args.slice(1));
     case "printf":
     case "if":
     case "else":
@@ -404,9 +413,7 @@ function evaluateArg(tokens: Token[], scope: Scope): Scope | null {
           }
           const userFunc = scope.template.funcs.get(token.name);
           if (userFunc) {
-            enforceArgsLength(token.name, args.length, userFunc.length);
-            // @ts-ignore
-            scope.acc = userFunc.apply(null, args);
+            scope.acc = callUserFunction(userFunc, token.name, ...args);
           } else {
             scope.acc = callBuiltinFunction(token.name, ...args);
           }

@@ -78,6 +78,20 @@ output
         "output"
       );
     });
+
+    it.skip("supports methods", function () {
+      assert.strictEqual(
+        template.execute(`{{.x "output"}}`, { x: (s: string) => s }),
+        "output"
+      );
+    });
+
+    it("supports call", function () {
+      assert.strictEqual(
+        template.execute(`{{call .x "output"}}`, { x: (s: string) => s }),
+        "output"
+      );
+    });
   });
 
   describe("custom functions", function () {
