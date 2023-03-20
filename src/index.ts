@@ -1,4 +1,5 @@
 import assert = require("assert");
+import { sprintf } from "./fmt";
 
 // TODO: add support for Array and Map
 type Value = string | number | null | boolean | FuncType;
@@ -105,6 +106,11 @@ function tokenize(action: string): Token[] {
   return tokens;
 }
 
+function asString(value?: Value): string {
+  enforce(typeof value === "string", `expected string; found ${value}`);
+  return value;
+}
+
 type FuncType0 = () => Value;
 type FuncType1 = (arg1: Value) => Value;
 type FuncType2 = (arg1: Value, arg2: Value) => Value;
@@ -202,6 +208,11 @@ assert.strictEqual(sprint(), "");
 assert.strictEqual(sprint("foo", "bar"), "foobar");
 assert.strictEqual(sprint(1, null, "3"), "1 <nil> 3");
 
+function printf(...values: Value[]): string {
+  const format = asString(values.shift());
+  return sprintf(format, ...values);
+}
+
 function enforce(value: unknown, message: string): asserts value {
   if (!value) {
     throw new Error(message);
@@ -295,9 +306,13 @@ function callBuiltinFunction(fn: string, ...args: Value[]): Value {
       enforce(typeof args[0] === "string", `len of type ${typeof args[0]}`);
       return args[0].length;
     case "call":
-      enforce(args[0] instanceof Function, `non-function of type ${typeof args[0]}`);
+      enforce(
+        args[0] instanceof Function,
+        `non-function of type ${typeof args[0]}`
+      );
       return callUserFunction(args[0], args[0].name, ...args.slice(1));
     case "printf":
+      return printf(...args);
     case "if":
     case "else":
     case "range":
