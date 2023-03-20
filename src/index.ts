@@ -33,7 +33,7 @@ function unescape(cString: string): string {
   return cString.replace(/\\(.)/g, (_, c) => {
     switch (c) {
       case "a":
-        return "a";
+        return "\x07";
       case "b":
         return "\b";
       case "f":
@@ -57,8 +57,8 @@ function unescape(cString: string): string {
 }
 
 assert.strictEqual(unescape("foo"), "foo");
-assert.strictEqual(unescape("foo\\tbar"), "foo\tbar");
-assert.strictEqual(unescape("foo\\nbar"), "foo\nbar");
+assert.strictEqual(unescape(`\\a\\b\\f\\n\\r\\t\\v\\\\\\'\\"`), `\x07\b\f\n\r\t\v\\'"`);
+// assert.strictEqual(unescape(`\\x07`), `\x07`); TODO: support hex escapes
 
 // TODO: this is a very naive implementation (for example, it doesn't handle hex or floating point numbers)
 const goRegex =
