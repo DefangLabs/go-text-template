@@ -24,6 +24,8 @@
     "scripts": {
         "build": "tsc",
         "prepublish": "npm run build",
+        "preversion": "npm run build",
+        "postversion": "git push --follow-tags",
         "test": "mocha --require ts-node/register test/*.ts"
     },
     "devDependencies": {
